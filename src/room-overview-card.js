@@ -219,7 +219,7 @@ class RoomOverviewCard extends RcCard {
       return a.name.localeCompare(b.name);
     });
     this._total = list.length;
-    this._anySensors = list.some((x) => x.sensors.length);
+    this._anySensors = list.some((x) => x.sensors.some((e) => !e.leak));
     if (c.only_active) list = list.filter((x) => rank(x) > 0 || x.id === this._openArea);
     return list;
   }

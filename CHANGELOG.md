@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+### Fixes
+- Sensors and Overview cards: *All closed* only when the room or home has door or window sensors; with only leak or presence sensors the status reads *All quiet*.
+
 ## 1.2.1
 
 ### Fixes

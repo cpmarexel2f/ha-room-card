@@ -8,6 +8,7 @@ const RS_I18N = {
   en: {
     title: "Sensors",
     all_closed: "All closed",
+    all_quiet: "All quiet",
     open_one: "{n} open",
     open_many: "{n} open",
     leak: "Water leak",
@@ -45,6 +46,7 @@ const RS_I18N = {
   fr: {
     title: "Capteurs",
     all_closed: "Tout est fermé",
+    all_quiet: "Tout est calme",
     open_one: "{n} ouverture",
     open_many: "{n} ouvertures",
     leak: "Fuite d'eau",
@@ -198,7 +200,8 @@ class RoomSensorsCard extends RcCard {
       ? this._t("leak")
       : open
         ? this._t(open > 1 ? "open_many" : "open_one", { n: open })
-        : this._t(items.length ? "all_closed" : "no_sensors");
+        : // "All closed" only makes sense with door or window sensors.
+          this._t(items.some((i) => i.kind !== "leak" && !i.info) ? "all_closed" : items.length ? "all_quiet" : "no_sensors");
     const shown = c.only_alerts ? items.filter((i) => i.on || i.unavailable) : items;
     const tiles = shown
       .map((i) =>
