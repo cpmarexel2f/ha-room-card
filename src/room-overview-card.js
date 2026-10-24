@@ -1,0 +1,485 @@
+/**
+ * room-overview-card — compact Lovelace card giving an overview of every room:
+ * openings and leaks, presence, lights and plugs, one tile per room.
+ * Tap a room to unfold its details (room-sensors-card, room-lights-card and
+ * room-switch-card). Uses src/shared.js. https://github.com/juju35/ha-room-card
+ */
+
+const RO_ROOM_ICONS = [
+  [/chambre|bedroom|nursery/i, "mdi:bed-outline"],
+  [/s[ée]jour|salon|living|lounge/i, "mdi:sofa-outline"],
+  [/cuisine|kitchen/i, "mdi:silverware-fork-knife"],
+  [/salle (de )?bains?|bath|douche|shower/i, "mdi:shower-head"],
+  [/toilettes?|wc|toilet/i, "mdi:toilet"],
+  [/entr[ée]e|entrance|hall d.entr|entry/i, "mdi:door"],
+  [/couloir|hall|corridor/i, "mdi:arrow-left-right"],
+  [/bureau|office|study/i, "mdi:desk"],
+  [/garage/i, "mdi:garage"],
+  [/terrasse|jardin|balcon|garden|terrace|balcony|patio|ext[ée]rieur|outdoor/i, "mdi:flower-outline"],
+  [/buanderie|cellier|laundry|utility/i, "mdi:washing-machine"],
+  [/salle [àa] manger|dining/i, "mdi:table-chair"],
+];
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const RO_I18N = {
+  en: {
+    title: "Home",
+    all_closed: "All closed",
+    all_quiet: "All quiet",
+    open_one: "{n} open",
+    open_many: "{n} open",
+    leak: "Water leak",
+    presence: "Presence",
+    no_rooms: "No room with sensors, lights or plugs",
+    lights_on: "Lights on",
+    plugs_on: "Plugs on",
+    rooms_occupied: "Occupied rooms",
+    sensors: "Sensors",
+    lights: "Lights",
+    plugs: "Plugs",
+    on: "On",
+    off: "Off",
+    open: "Open",
+    closed: "Closed",
+    detected: "Detected",
+    clear: "Clear",
+    unavailable: "Unavailable",
+    ed_title: "Title",
+    ed_title_helper: "Leave empty for “Home”",
+    ed_columns: "Columns",
+    ed_columns_helper: "Empty: 3, or 2 on narrow screens",
+    ed_presence: "Include presence sensors",
+    ed_presence_helper: "Presence and motion sensors, cameras excluded",
+    ed_only_active: "Hide idle rooms",
+    ed_only_active_helper: "Only rooms with something open, on or detected stay visible",
+    ed_sort: "Sort",
+    ed_sort_name: "By name",
+    ed_sort_state: "Rooms needing attention first",
+    ed_exclude_areas: "Rooms to exclude",
+  },
+  fr: {
+    title: "Maison",
+    all_closed: "Tout est fermé",
+    all_quiet: "Tout est calme",
+    open_one: "{n} ouverture",
+    open_many: "{n} ouvertures",
+    leak: "Fuite d'eau",
+    presence: "Présence",
+    no_rooms: "Aucune pièce avec des capteurs, lumières ou prises",
+    lights_on: "Lumières allumées",
+    plugs_on: "Prises allumées",
+    rooms_occupied: "Pièces occupées",
+    sensors: "Capteurs",
+    lights: "Lumières",
+    plugs: "Prises",
+    on: "Allumée",
+    off: "Éteinte",
+    open: "Ouvert",
+    closed: "Fermé",
+    detected: "Détectée",
+    clear: "Aucune",
+    unavailable: "Indisponible",
+    ed_title: "Titre",
+    ed_title_helper: "Laisser vide pour « Maison »",
+    ed_columns: "Colonnes",
+    ed_columns_helper: "Vide : 3, ou 2 sur les écrans étroits",
+    ed_presence: "Inclure les capteurs de présence",
+    ed_presence_helper: "Capteurs de présence et de mouvement, hors caméras",
+    ed_only_active: "Masquer les pièces au repos",
+    ed_only_active_helper: "Seules les pièces avec quelque chose d'ouvert, d'allumé ou de détecté restent affichées",
+    ed_sort: "Tri",
+    ed_sort_name: "Par nom",
+    ed_sort_state: "Pièces à surveiller en premier",
+    ed_exclude_areas: "Pièces à exclure",
+  },
+};
+
+const roRoomIcon = (area) => {
+  if (area.icon) return area.icon;
+  const hit = RO_ROOM_ICONS.find(([re]) => re.test(area.name || area.area_id || ""));
+  return hit ? hit[1] : "mdi:home-outline";
+};
+
+// ── Card ─────────────────────────────────────────────────────────────────────
+class RoomOverviewCard extends RcCard {
+  static tag = "room-overview-card";
+  static i18n = RO_I18N;
+  static defaults = { presence: true, only_active: false, sort: "name", exclude_areas: [], rooms: [] };
+
+  static getStubConfig() {
+    return {};
+  }
+
+  constructor() {
+    super();
+    // A click anywhere else folds the open room back.
+    this._onOutside = (ev) => {
+      if (this._openArea && !ev.composedPath().includes(this)) this._toggle(null);
+    };
+  }
+
+  set hass(hass) {
+    super.hass = hass;
+    for (const el of this._details || []) el.hass = hass;
+  }
+
+  connectedCallback() {
+    document.addEventListener("click", this._onOutside, true);
+  }
+
+  disconnectedCallback() {
+    document.removeEventListener("click", this._onOutside, true);
+  }
+
+  getCardSize() {
+    return 1 + Math.ceil((this._rooms?.length || 1) / 3);
+  }
+
+  // ── Data ───────────────────────────────────────────────────────────────────
+  _collect() {
+    const h = this._hass;
+    const c = this._config;
+    const reg = h.entities || {};
+    const areaOf = (id) => reg[id]?.area_id ?? h.devices?.[reg[id]?.device_id]?.area_id;
+
+    const cameraDevices = rcCameraDevices(h);
+    const power = rcPowerSensors(h);
+    const watts = (id) => rcWattsOf(h, power[reg[id]?.device_id]);
+
+    const rooms = {};
+    const room = (aid) => {
+      if (!rooms[aid]) {
+        rooms[aid] = { id: aid, sensors: [], presence: [], lights: [], plugs: [] };
+      }
+      return rooms[aid];
+    };
+
+    for (const [id, st] of Object.entries(h.states)) {
+      const r = reg[id];
+      if (r?.hidden || r?.entity_category) continue;
+      const aid = areaOf(id);
+      if (!aid) continue;
+      const dc = st.attributes.device_class;
+      if (id.startsWith("binary_sensor.")) {
+        if (RC_OPENING_CLASSES.includes(dc)) room(aid).sensors.push({ id, leak: dc === "moisture", st });
+        else if (c.presence !== false && RC_PRESENCE_CLASSES.includes(dc) && !cameraDevices.has(r?.device_id)) {
+          room(aid).presence.push({ id, st });
+        }
+      } else if (id.startsWith("light.")) {
+        if (!Array.isArray(st.attributes.entity_id)) room(aid).lights.push({ id, st });
+      } else if (id.startsWith("switch.")) {
+        if (rcIsLightSwitch(st)) room(aid).lights.push({ id, st });
+        else if (rcIsPlug(st)) room(aid).plugs.push({ id, st, watts: watts(id) });
+      }
+    }
+
+    const exclude = new Set(c.exclude_areas || []);
+    const overrides = Object.fromEntries((c.rooms || []).map((x) => [x.area, x]));
+    const order = (c.rooms || []).map((x) => x.area);
+
+    let list = Object.values(rooms)
+      .filter((x) => !exclude.has(x.id) && h.areas?.[x.id])
+      .map((x) => {
+        const area = h.areas[x.id];
+        const o = overrides[x.id] || {};
+        const on = (e) => e.st.state === "on";
+        const plugsOn = x.plugs.filter(on);
+        const plugWatts = plugsOn.filter((p) => p.watts != null);
+        return {
+          ...x,
+          name: o.name ?? area.name ?? x.id,
+          icon: o.icon ?? roRoomIcon(area),
+          navigation_path: o.navigation_path,
+          leaks: x.sensors.filter((s) => s.leak && on(s)).length,
+          open: x.sensors.filter((s) => !s.leak && on(s)).length,
+          occupied: x.presence.some(on),
+          lightsOn: x.lights.filter(on).length,
+          plugsOn: plugsOn.length,
+          watts: plugWatts.length ? plugWatts.reduce((t, p) => t + p.watts, 0) : null,
+        };
+      });
+
+    const rank = (x) => (x.leaks ? 4 : x.open ? 3 : x.occupied ? 2 : x.lightsOn || x.plugsOn ? 1 : 0);
+    list.sort((a, b) => {
+      if (order.length) {
+        const ia = order.indexOf(a.id);
+        const ib = order.indexOf(b.id);
+        if (ia !== ib) return (ia < 0 ? 1e9 : ia) - (ib < 0 ? 1e9 : ib);
+      }
+      if (c.sort === "state") {
+        const d = rank(b) - rank(a);
+        if (d) return d;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    if (c.only_active) list = list.filter((x) => rank(x) > 0 || x.id === this._openArea);
+    return list;
+  }
+
+  _roomState(x) {
+    if (x.leaks) return { lvl: "alert", text: this._t("leak") };
+    if (x.open) return { lvl: "warn", text: this._t(x.open > 1 ? "open_many" : "open_one", { n: x.open }) };
+    if (x.occupied) return { lvl: "info", text: this._t("presence") };
+    // "All closed" only makes sense with door or window sensors.
+    return { lvl: "ok", text: this._t(x.sensors.some((e) => !e.leak) ? "all_closed" : "all_quiet") };
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  _render() {
+    if (!this._config || !this._hass || !this.shadowRoot) return;
+    const c = this._config;
+    const rooms = this._collect();
+    this._rooms = rooms;
+
+    const parts = rooms.map((x) => [x.id, x.name, x.icon, x.leaks, x.open, x.occupied, x.lightsOn, x.plugsOn, x.watts && Math.round(x.watts)]);
+    if (!this._changed([this._openArea, parts])) return;
+
+    if (!this.shadowRoot.querySelector("ha-card")) {
+      this.shadowRoot.innerHTML = `
+        <style>${RC_BASE_STYLES}${RoomOverviewCard.styles}</style>
+        <ha-card><div class="head"></div><div class="panel" hidden></div><div class="grid"></div></ha-card>`;
+      this.shadowRoot.querySelector(".grid").addEventListener("click", (ev) => {
+        const tile = ev.target.closest(".room");
+        if (tile) this._tap(tile.dataset.area);
+      });
+    }
+
+    const leaks = rooms.reduce((t, x) => t + x.leaks, 0);
+    const open = rooms.reduce((t, x) => t + x.open, 0);
+    const lights = rooms.reduce((t, x) => t + x.lightsOn, 0);
+    const plugs = rooms.reduce((t, x) => t + x.plugsOn, 0);
+    const watts = rooms.some((x) => x.watts != null) ? rooms.reduce((t, x) => t + (x.watts ?? 0), 0) : null;
+    const occupied = rooms.filter((x) => x.occupied).length;
+    const level = leaks ? "alert" : open ? "warn" : "ok";
+    const status = leaks
+      ? this._t("leak")
+      : open
+        ? this._t(open > 1 ? "open_many" : "open_one", { n: open })
+        : this._t(rooms.some((x) => x.sensors.length) ? "all_closed" : "all_quiet");
+    const headIcon = leaks ? "mdi:water-alert" : open ? "mdi:home-alert-outline" : "mdi:home-outline";
+
+    const chip = (cls, icon, label, text) =>
+      `<span class="chip ${cls}" title="${rcEsc(label)}"><ha-icon icon="${icon}"></ha-icon>${text ? `<span>${rcEsc(text)}</span>` : ""}</span>`;
+
+    const card = this.shadowRoot.querySelector("ha-card");
+    card.className = `lvl-${level}`;
+    card.querySelector(".head").innerHTML = `
+      <div class="badge"><ha-icon icon="${headIcon}"></ha-icon></div>
+      <div class="title">${rcEsc(c.title || this._t("title"))}</div>
+      ${occupied ? chip("info", "mdi:account", this._t("rooms_occupied"), String(occupied)) : ""}
+      ${lights ? chip("light", "mdi:lightbulb", this._t("lights_on"), String(lights)) : ""}
+      ${plugs ? chip("plug", "mdi:power-socket-fr", this._t("plugs_on"), watts != null ? rcWatts(watts) : String(plugs)) : ""}
+      <div class="pill">${rcEsc(status)}</div>`;
+
+    const cols = Number(c.columns);
+    const grid = card.querySelector(".grid");
+    grid.classList.toggle("fixed", cols >= 1);
+    grid.style.setProperty("--cols", String(Math.min(6, Math.max(1, cols || 3))));
+    grid.innerHTML = rooms.length
+      ? rooms
+          .map((x) => {
+            const s = this._roomState(x);
+            // Chips only add what the state line does not already say.
+            const chips = [
+              x.leaks && x.open ? chip("warn", "mdi:door-open", this._t("open_many", { n: x.open }), String(x.open)) : "",
+              x.occupied && s.lvl !== "info" ? chip("info", "mdi:account", this._t("presence")) : "",
+              x.lightsOn ? chip("light", "mdi:lightbulb", this._t("lights_on"), String(x.lightsOn)) : "",
+              x.plugsOn
+                ? chip("plug", "mdi:power-socket-fr", this._t("plugs_on"), x.watts != null ? rcWatts(x.watts) : String(x.plugsOn))
+                : "",
+            ].join("");
+            return `
+            <button class="room lvl-${s.lvl}${x.id === this._openArea ? " sel" : ""}" data-area="${rcEsc(x.id)}"
+                    title="${rcEsc(x.name)} — ${rcEsc(s.text)}">
+              <span class="ic"><ha-icon icon="${rcEsc(x.icon)}"></ha-icon></span>
+              <span class="name">${rcEsc(x.name)}</span>
+              <span class="state">${rcEsc(s.text)}</span>
+              <span class="chips">${chips}</span>
+            </button>`;
+          })
+          .join("")
+      : `<div class="empty">${rcEsc(this._t("no_rooms"))}</div>`;
+
+    if (this._openArea && !rooms.some((x) => x.id === this._openArea)) this._toggle(null);
+    else if (this._openArea) this._fillPanel();
+  }
+
+  _tap(aid) {
+    const x = this._rooms.find((r) => r.id === aid);
+    if (x?.navigation_path) {
+      rcNavigate(x.navigation_path);
+      return;
+    }
+    this._toggle(this._openArea === aid ? null : aid);
+  }
+
+  _toggle(aid) {
+    this._openArea = aid;
+    this._panelArea = null;
+    this._sig = null;
+    this._render();
+    const panel = this.shadowRoot.querySelector(".panel");
+    panel.hidden = !aid;
+    if (!aid) {
+      panel.innerHTML = "";
+      this._details = [];
+    }
+  }
+
+  // Details of the open room: the room-* cards when installed, a plain list otherwise.
+  _fillPanel() {
+    const x = this._rooms.find((r) => r.id === this._openArea);
+    const panel = this.shadowRoot.querySelector(".panel");
+    panel.hidden = false;
+    const key = JSON.stringify([x.id, x.sensors.length, x.presence.length, x.lights.length, x.plugs.length]);
+    if (this._panelArea === key) {
+      if (this._fallback) this._fillFallback(panel, x);
+      return;
+    }
+    this._panelArea = key;
+    panel.innerHTML = "";
+    this._details = [];
+    this._fallback = false;
+
+    const parts = [
+      ["room-sensors-card", x.sensors.length + x.presence.length, { title: this._t("sensors"), presence: this._config.presence }],
+      ["room-lights-card", x.lights.length, { title: this._t("lights") }],
+      ["room-switch-card", x.plugs.length, { title: this._t("plugs") }],
+    ];
+    for (const [tag, count, extra] of parts) {
+      if (!count || !customElements.get(tag)) continue;
+      const el = document.createElement(tag);
+      el.setConfig({ type: `custom:${tag}`, area: x.id, ...extra });
+      el.hass = this._hass;
+      panel.appendChild(el);
+      this._details.push(el);
+    }
+    if (!this._details.length) {
+      this._fallback = true;
+      this._fillFallback(panel, x);
+    }
+  }
+
+  _fillFallback(panel, x) {
+    const row = (e, kind) => {
+      const st = e.st;
+      const on = st.state === "on";
+      const text = rcUnavailable(st)
+        ? this._t("unavailable")
+        : kind === "sensor"
+          ? this._t(on ? "open" : "closed")
+          : kind === "presence"
+            ? this._t(on ? "detected" : "clear")
+            : this._t(on ? "on" : "off");
+      return `<button class="row${on ? " on" : ""}" data-id="${rcEsc(e.id)}"><span>${rcEsc(st.attributes.friendly_name || e.id)}</span><span>${rcEsc(text)}</span></button>`;
+    };
+    panel.innerHTML = `<div class="list">${[
+      ...x.sensors.map((e) => row(e, "sensor")),
+      ...x.presence.map((e) => row(e, "presence")),
+      ...x.lights.map((e) => row(e, "toggle")),
+      ...x.plugs.map((e) => row(e, "toggle")),
+    ].join("")}</div>`;
+    for (const el of panel.querySelectorAll(".row")) {
+      el.addEventListener("click", () => rcMoreInfo(this, el.dataset.id));
+    }
+  }
+
+  static styles = `
+      ha-card { container-type: inline-size; }
+      ha-card.lvl-ok    { --c: var(--rc-ok); }
+      ha-card.lvl-warn  { --c: var(--rc-warn); }
+      ha-card.lvl-alert { --c: var(--rc-alert); }
+
+      .chip { --k: var(--rc-idle); flex: none; display: inline-flex; align-items: center; gap: 2px; height: 18px; padding: 0 5px;
+              border-radius: 999px; font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap;
+              color: var(--k); background: color-mix(in srgb, var(--k) 14%, transparent); }
+      .head { gap: 6px; }
+      .head .chip { height: 20px; padding: 0 6px; font-size: 11px; }
+      .chip ha-icon { --mdc-icon-size: 12px; }
+      .chip:not(:has(span)) { width: 18px; padding: 0; justify-content: center; }
+      .chip.alert { --k: var(--rc-alert); }
+      .chip.warn  { --k: var(--rc-warn); }
+      .chip.info  { --k: var(--rc-info); }
+      .chip.light { --k: var(--rc-light); }
+      .chip.plug  { --k: var(--rc-plug); }
+
+      .grid { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+      @container (max-width: 340px) { .grid:not(.fixed) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+      .room { --t: var(--rc-idle); all: unset; box-sizing: border-box; cursor: pointer; min-width: 0;
+              display: grid; grid-template-columns: 26px minmax(0, 1fr); grid-template-areas: "ic name" "ic state" "chips chips";
+              column-gap: 7px; row-gap: 0; align-items: center; align-content: start; padding: 6px 7px; border-radius: 10px;
+              background: var(--secondary-background-color, transparent); border: 1px solid transparent;
+              transition: background .2s, border-color .2s; }
+      .room.lvl-warn  { --t: var(--rc-warn); }
+      .room.lvl-alert { --t: var(--rc-alert); }
+      .room.lvl-info  { --t: var(--rc-info); }
+      .room.lvl-warn, .room.lvl-alert {
+        background: color-mix(in srgb, var(--t) 9%, var(--secondary-background-color, transparent));
+        border-color: color-mix(in srgb, var(--t) 22%, transparent); }
+      .room:hover { background: color-mix(in srgb, var(--t) 13%, var(--secondary-background-color, transparent)); }
+      .room:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+      .room.sel { border-color: color-mix(in srgb, var(--primary-color) 55%, transparent); }
+      .room .ic { grid-area: ic; align-self: start; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+                  color: var(--t); background: color-mix(in srgb, var(--t) 16%, transparent); }
+      .room.lvl-ok .ic { color: var(--primary-text-color); background: color-mix(in srgb, var(--rc-idle) 14%, transparent); }
+      .room .ic ha-icon { --mdc-icon-size: 15px; }
+      .room.lvl-alert .ic { animation: rc-blink 1.5s ease-in-out infinite; }
+      .name { grid-area: name; font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--primary-text-color);
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .state { grid-area: state; font-size: 11px; line-height: 1.2; color: var(--secondary-text-color);
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .room:not(.lvl-ok) .state { color: var(--t); }
+      .chips { grid-area: chips; display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+      .chips:empty { display: none; }
+      .empty { grid-column: 1 / -1; padding: 12px; text-align: center; font-size: 13px; color: var(--secondary-text-color); }
+
+      .panel { margin-top: 8px; border-radius: 12px; overflow: hidden;
+               background: var(--secondary-background-color, transparent);
+               --ha-card-background: transparent; --card-background-color: transparent;
+               --ha-card-box-shadow: none; --ha-card-border-width: 0; }
+      .panel[hidden] { display: none; }
+      .panel > * + * { border-top: 1px solid var(--divider-color, rgba(127,127,127,.15)); }
+      .list { display: flex; flex-direction: column; padding: 4px; }
+      .row { all: unset; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 8px;
+             font-size: 13px; color: var(--primary-text-color); }
+      .row span:last-child { color: var(--secondary-text-color); font-size: 12px; }
+      .row.on span:last-child { color: var(--rc-warn); }
+      .row:hover { background: color-mix(in srgb, var(--rc-idle) 12%, transparent); }
+
+      @media (prefers-reduced-motion: reduce) { .room, .room .ic { animation: none; transition: none; } }
+    `;
+}
+
+// ── Editor ───────────────────────────────────────────────────────────────────
+const RoomOverviewCardEditor = rcEditor({
+  i18n: RO_I18N,
+  defaults: { presence: true, only_active: false, sort: "name" },
+  helpers: ["title", "columns", "presence", "only_active"],
+  schema: (lang) => [
+    { name: "title", selector: { text: {} } },
+    { name: "columns", selector: { number: { min: 1, max: 6, mode: "box" } } },
+    {
+      name: "sort",
+      selector: {
+        select: {
+          mode: "dropdown",
+          options: [
+            { value: "name", label: rcT(RO_I18N, lang, "ed_sort_name") },
+            { value: "state", label: rcT(RO_I18N, lang, "ed_sort_state") },
+          ],
+        },
+      },
+    },
+    { name: "presence", selector: { boolean: {} } },
+    { name: "only_active", selector: { boolean: {} } },
+    { name: "exclude_areas", selector: { area: { multiple: true } } },
+  ],
+});
+
+rcRegister(
+  RoomOverviewCard,
+  RoomOverviewCardEditor,
+  "Room Overview Card",
+  "Every room at a glance: openings, leaks, presence, lights and plugs; tap a room for its details",
+);

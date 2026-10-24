@@ -1,0 +1,7 @@
+{
+  "name": "Room Cards",
+  "render_readme": true,
+  "content_in_root": false,
+  "filename": "ha-room-card.js",
+  "homeassistant": "2024.8.0"
+}
