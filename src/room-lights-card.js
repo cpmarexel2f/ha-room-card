@@ -29,6 +29,8 @@ const RL_I18N = {
     ed_show_brightness_helper: "Drag a light sideways to set its brightness",
     ed_all_off_button: "“Turn everything off” button",
     ed_all_off_button_helper: "Tapping the status pill turns every light of the card off",
+    ed_include: "Lights to add",
+    ed_include_helper: "From another room or without one",
     ed_exclude: "Lights to exclude",
     err_config: "Set `area` or `entities`",
   },
@@ -56,6 +58,8 @@ const RL_I18N = {
     ed_show_brightness_helper: "Glisser une lumière sur le côté pour régler sa luminosité",
     ed_all_off_button: "Bouton « Tout éteindre »",
     ed_all_off_button_helper: "Un tap sur la pastille éteint toutes les lumières de la carte",
+    ed_include: "Lumières à ajouter",
+    ed_include_helper: "D'une autre pièce ou sans pièce",
     ed_exclude: "Lumières à exclure",
     err_config: "Définis `area` ou `entities`",
   },
@@ -74,6 +78,7 @@ class RoomLightsCard extends RcCard {
   static tag = "room-lights-card";
   static i18n = RL_I18N;
   static needsArea = true;
+  static includeDomains = ["light", "switch"];
   static defaults = {
     columns: 2,
     only_on: false,
@@ -199,10 +204,11 @@ class RoomLightsCard extends RcCard {
 const RoomLightsCardEditor = rcEditor({
   i18n: RL_I18N,
   defaults: { columns: 2, only_on: false, hide_when_off: false, show_brightness: true, all_off_button: true },
-  helpers: ["title", "navigation_path", "only_on", "hide_when_off", "show_brightness", "all_off_button"],
+  helpers: ["title", "navigation_path", "only_on", "hide_when_off", "show_brightness", "all_off_button", "include"],
   schema: (_lang, hass, config) => [
     ...rcAreaFields(true),
     ...rcBooleans("only_on", "hide_when_off", "show_brightness", "all_off_button"),
+    ...rcIncludeField(RoomLightsCard, hass, config),
     ...rcExcludeField(RoomLightsCard, hass, config),
   ],
 });

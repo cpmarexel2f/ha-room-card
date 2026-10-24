@@ -29,6 +29,8 @@ const RW_I18N = {
     ed_show_power_helper: "Read from the power sensor of each plug",
     ed_all_off_button: "“Turn everything off” button",
     ed_all_off_button_helper: "Tapping the status pill turns every plug of the card off",
+    ed_include: "Plugs and switches to add",
+    ed_include_helper: "From another room or without one, or a switch not recognised as a plug",
     ed_exclude: "Plugs to exclude",
     err_config: "Set `area` or `entities`",
   },
@@ -56,6 +58,8 @@ const RW_I18N = {
     ed_show_power_helper: "Lue sur le capteur de puissance de chaque prise",
     ed_all_off_button: "Bouton « Tout éteindre »",
     ed_all_off_button_helper: "Un tap sur la pastille éteint toutes les prises de la carte",
+    ed_include: "Prises et interrupteurs à ajouter",
+    ed_include_helper: "D'une autre pièce ou sans pièce, ou un interrupteur non reconnu comme prise",
     ed_exclude: "Prises à exclure",
     err_config: "Définis `area` ou `entities`",
   },
@@ -71,6 +75,7 @@ class RoomSwitchCard extends RcCard {
   static tag = "room-switch-card";
   static i18n = RW_I18N;
   static needsArea = true;
+  static includeDomains = ["switch"];
   static defaults = {
     columns: 2,
     only_on: false,
@@ -153,10 +158,11 @@ class RoomSwitchCard extends RcCard {
 const RoomSwitchCardEditor = rcEditor({
   i18n: RW_I18N,
   defaults: { columns: 2, only_on: false, hide_when_off: false, show_power: true, all_off_button: false },
-  helpers: ["title", "navigation_path", "only_on", "hide_when_off", "show_power", "all_off_button"],
+  helpers: ["title", "navigation_path", "only_on", "hide_when_off", "show_power", "all_off_button", "include"],
   schema: (_lang, hass, config) => [
     ...rcAreaFields(true),
     ...rcBooleans("only_on", "hide_when_off", "show_power", "all_off_button"),
+    ...rcIncludeField(RoomSwitchCard, hass, config),
     ...rcExcludeField(RoomSwitchCard, hass, config),
   ],
 });

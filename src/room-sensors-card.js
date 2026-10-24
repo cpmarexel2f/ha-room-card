@@ -37,6 +37,8 @@ const RS_I18N = {
     ed_presence: "Include presence sensors",
     ed_presence_helper: "Presence and motion sensors, cameras excluded",
     ed_blink: "Blink alerts",
+    ed_include: "Sensors to add",
+    ed_include_helper: "From another room or without one",
     ed_exclude: "Sensors to exclude",
     err_config: "Set `area` or `entities`",
   },
@@ -74,6 +76,8 @@ const RS_I18N = {
     ed_presence: "Inclure les capteurs de présence",
     ed_presence_helper: "Capteurs de présence et de mouvement, hors caméras",
     ed_blink: "Faire clignoter les alertes",
+    ed_include: "Capteurs à ajouter",
+    ed_include_helper: "D'une autre pièce ou sans pièce",
     ed_exclude: "Capteurs à exclure",
     err_config: "Définis `area` ou `entities`",
   },
@@ -117,6 +121,7 @@ class RoomSensorsCard extends RcCard {
   static tag = "room-sensors-card";
   static i18n = RS_I18N;
   static needsArea = true;
+  static includeDomains = ["binary_sensor"];
   static defaults = { columns: 2, only_alerts: false, hide_when_clear: false, presence: true, blink: true, exclude: [] };
 
   _candidate(id) {
@@ -243,10 +248,11 @@ class RoomSensorsCard extends RcCard {
 const RoomSensorsCardEditor = rcEditor({
   i18n: RS_I18N,
   defaults: { columns: 2, only_alerts: false, hide_when_clear: false, presence: true, blink: true },
-  helpers: ["title", "only_alerts", "hide_when_clear", "presence"],
+  helpers: ["title", "only_alerts", "hide_when_clear", "presence", "include"],
   schema: (_lang, hass, config) => [
     ...rcAreaFields(false),
     ...rcBooleans("only_alerts", "hide_when_clear", "presence", "blink"),
+    ...rcIncludeField(RoomSensorsCard, hass, config),
     ...rcExcludeField(RoomSensorsCard, hass, config),
   ],
 });

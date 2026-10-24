@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+### What's new
+- `include` on the Sensors, Lights and Plugs cards: entities added to the ones found in the room, from another room, without a room, or not recognised by the discovery (a switch that is not named as a plug, say). Each item is an entity ID or `{entity, name, icon}`, like in `entities`. A card can also be made of `include` alone.
+- The visual editors have an *add* list next to the *exclude* one: it offers the entities of the card's domains (binary sensors, lights and switches, or switches) that the card does not show yet, configuration entities left out.
+
 ## 1.0.1
 
 ### Changes

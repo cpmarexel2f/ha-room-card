@@ -65,6 +65,7 @@ The Sensors, Lights and Plugs cards share these options; each card section lists
 | Option | Required | Default | Description |
 |---|---|---|---|
 | `area` | ✅* | — | Area ID; its entities are found automatically |
+| `include` | ✅* | — | Entities added to the ones found in the area: from another room, without a room, or not recognised (a switch that is not named as a plug, say); each item is an entity ID or `{entity, name, icon}`. The visual editor offers the entities of the card's domains that it does not show yet |
 | `entities` | ✅* | — | Explicit list, replaces the discovery; each item is an entity ID or `{entity, name, icon}` (plus `power` on the Plugs card) |
 | `title` | ❌ | Area name | Card title |
 | `columns` | ❌ | `2` | Number of tile columns (1–4) |
@@ -75,7 +76,7 @@ The Sensors, Lights and Plugs cards share these options; each card section lists
 | `all_off_button` | ❌ | Lights `true`, Plugs `false` | Lights and Plugs cards: the status pill turns everything of the card off when tapped (off by default on Plugs: a plug may feed a camera or a network switch) |
 | `language` | ❌ | Auto | Force language: `fr` or `en` (auto-detects from HA settings); also on the Overview card |
 
-\* `area` or `entities` is required.
+\* `area`, `include` or `entities` is required.
 
 ## Overview
 

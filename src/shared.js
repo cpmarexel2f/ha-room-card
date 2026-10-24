@@ -101,7 +101,7 @@ class RcCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (this.constructor.needsArea && !config.area && !config.entities?.length) {
+    if (this.constructor.needsArea && !config.area && !config.entities?.length && !config.include?.length) {
       throw new Error(rcT(this.constructor.i18n, rcLang(this.constructor.i18n, this._hass, config), "err_config"));
     }
     this._config = { ...this.constructor.defaults, ...config };
@@ -142,18 +142,22 @@ class RcCard extends HTMLElement {
     return c.area ? (this._hass.areas?.[c.area]?.name ?? c.area) : "";
   }
 
-  // The configured `entities`, or the entities of the area accepted by `_candidate`.
+  // The configured `entities`; otherwise the entities of the area accepted by `_candidate`, minus `exclude`,
+  // plus `include` (entities from another room or without one).
   _entries() {
     const h = this._hass;
     const c = this._config;
-    if (c.entities?.length) {
-      return c.entities.map((e) => (typeof e === "string" ? { entity: e } : e)).filter((e) => h.states[e.entity]);
-    }
+    const list = (l) => (l || []).map((e) => (typeof e === "string" ? { entity: e } : e)).filter((e) => h.states[e.entity]);
+    if (c.entities?.length) return list(c.entities);
     const exclude = new Set(c.exclude || []);
     this._prepare();
-    return Object.keys(h.states)
-      .filter((id) => !exclude.has(id) && !h.entities?.[id]?.hidden && this._areaOf(id) === c.area && this._candidate(id))
-      .map((entity) => ({ entity }));
+    const found = c.area
+      ? Object.keys(h.states)
+          .filter((id) => !exclude.has(id) && !h.entities?.[id]?.hidden && this._areaOf(id) === c.area && this._candidate(id))
+          .map((entity) => ({ entity }))
+      : [];
+    const ids = new Set(found.map((e) => e.entity));
+    return [...found, ...list(c.include).filter((e) => !ids.has(e.entity))];
   }
 
   // Hook run before the discovery, for what `_candidate` needs (the camera devices, say).
@@ -303,6 +307,29 @@ const rcAreaFields = (navigation) => [
   { name: "columns", selector: { number: { min: 1, max: 4, mode: "box" } } },
 ];
 const rcBooleans = (...names) => names.map((name) => ({ name, selector: { boolean: {} } }));
+
+// Include list: the entities of the card's domains, anywhere in the home, that the card does not show yet
+// (entities already included stay in the list).
+const rcIncludeField = (card, hass, config) => {
+  if (!hass) return [];
+  const shown = new Set(
+    rcProbe(card, hass, { ...config, entities: undefined, include: [] })
+      ._entries()
+      .map((e) => e.entity),
+  );
+  const ids = Object.keys(hass.states).filter(
+    (id) =>
+      card.includeDomains.includes(id.split(".")[0]) &&
+      !shown.has(id) &&
+      !hass.entities?.[id]?.hidden &&
+      !hass.entities?.[id]?.entity_category,
+  );
+  for (const e of config?.include || []) {
+    const id = typeof e === "string" ? e : e.entity;
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids.length ? [{ name: "include", selector: { entity: { multiple: true, include_entities: ids } } }] : [];
+};
 
 // A detached card of class `card`, with `config` over its defaults, to run its discovery from the editor.
 const rcProbe = (card, hass, config) => {
