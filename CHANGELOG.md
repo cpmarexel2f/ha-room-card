@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+### What's new
+- Overview card: tapping the lights chip of the header turns every light the card counts off (excluded rooms and entities stay as they are). On by default, `all_off_button: false` turns it into a plain counter again.
+
 ## 1.2.2
 
 ### Fixes

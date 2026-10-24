@@ -92,6 +92,7 @@ The Sensors, Lights and Plugs cards share these options; each card section lists
 - One compact tile per room, coloured by what matters most: *Water leak* (red, blinking), *1 open* (orange), *Presence* (blue), otherwise *All closed* / *All quiet*
 - Small chips on each tile for the lights that are on, the plugs that are on with their power draw, and presence when an alert is already shown
 - Header with the home status and totals: occupied rooms, lights on, power drawn by the plugs
+- **Tap** the lights chip of the header to turn every light the card counts off (`all_off_button`)
 - **Tap** a room to unfold its details at the top of the card: the Sensors, Lights and Plugs cards of that room; tap it again or anywhere else to fold it back
 - Automatic discovery: every area with door, window, leak or presence sensors, lights or plugs becomes a room, with an icon picked from its name
 - Same rules as the room cards: camera detections, configuration entities and light groups are skipped, light switches count as lights
@@ -114,6 +115,7 @@ columns: 3
 sort: name
 presence: true
 only_active: false
+all_off_button: true
 exclude_areas:
   - garage
 exclude:
@@ -137,6 +139,7 @@ rooms:
 | `sort` | ❌ | `name` | `name`, or `state` to list the rooms needing attention first (leak, open, presence, something on) |
 | `presence` | ❌ | `true` | Include the presence and motion sensors (camera detections are always left out) |
 | `only_active` | ❌ | `false` | Show only the rooms with something open, on or detected |
+| `all_off_button` | ❌ | `true` | Tapping the lights chip of the header turns every light the card counts off |
 | `exclude_areas` | ❌ | — | Rooms left out; the visual editor only offers the rooms the card finds |
 | `exclude` | ❌ | — | Entities left out of the tiles, the totals and the room details; the visual editor only offers the entities the card counts in the rooms it shows |
 | `rooms` | ❌ | — | Room order and overrides, see below; the other rooms follow |
