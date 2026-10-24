@@ -135,6 +135,7 @@ class RoomOverviewCard extends RcCard {
     return 1 + Math.ceil((this._rooms?.length || 1) / 3);
   }
 
+
   // ── Data ───────────────────────────────────────────────────────────────────
   _collect() {
     const h = this._hass;
@@ -456,7 +457,7 @@ const RoomOverviewCardEditor = rcEditor({
   i18n: RO_I18N,
   defaults: { presence: true, only_active: false, sort: "name" },
   helpers: ["title", "columns", "presence", "only_active"],
-  schema: (lang) => [
+  schema: (lang, hass, config) => [
     { name: "title", selector: { text: {} } },
     { name: "columns", selector: { number: { min: 1, max: 6, mode: "box" } } },
     {
@@ -473,7 +474,21 @@ const RoomOverviewCardEditor = rcEditor({
     },
     { name: "presence", selector: { boolean: {} } },
     { name: "only_active", selector: { boolean: {} } },
-    { name: "exclude_areas", selector: { area: { multiple: true } } },
+    {
+      name: "exclude_areas",
+      // The rooms the card finds, excluded ones included.
+      selector: {
+        select: {
+          multiple: true,
+          mode: "dropdown",
+          options: hass
+            ? rcProbe(RoomOverviewCard, hass, { ...config, exclude_areas: [], only_active: false })
+                ._collect()
+                .map((x) => ({ value: x.id, label: x.name }))
+            : [],
+        },
+      },
+    },
   ],
 });
 

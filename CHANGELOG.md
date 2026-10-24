@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+### Changes
+- Smarter exclude lists in the visual editors: the Sensors, Lights and Plugs cards only offer the entities they find in the chosen room, with their own rules (sensors of the right kind without the camera detections, lights without light groups, plugs without light switches); the Overview card only offers the rooms it finds. Entities and rooms already excluded stay in the list. The exclude list appears once a room is chosen.
+
 ## 1.0.0
 
 First release of **ha-room-card**: the room cards in a single HACS download.

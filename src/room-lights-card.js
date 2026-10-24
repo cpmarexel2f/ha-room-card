@@ -200,10 +200,10 @@ const RoomLightsCardEditor = rcEditor({
   i18n: RL_I18N,
   defaults: { columns: 2, only_on: false, hide_when_off: false, show_brightness: true, all_off_button: true },
   helpers: ["title", "navigation_path", "only_on", "hide_when_off", "show_brightness", "all_off_button"],
-  schema: () => [
+  schema: (_lang, hass, config) => [
     ...rcAreaFields(true),
     ...rcBooleans("only_on", "hide_when_off", "show_brightness", "all_off_button"),
-    { name: "exclude", selector: { entity: { multiple: true, filter: [{ domain: "light" }, { domain: "switch" }] } } },
+    ...rcExcludeField(RoomLightsCard, hass, config),
   ],
 });
 

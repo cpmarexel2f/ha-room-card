@@ -149,8 +149,11 @@ class RoomSensorsCard extends RcCard {
     return this._t("day", { n: Math.floor(s / 86400) });
   }
 
-  _collect() {
+  _prepare() {
     this._cameras = rcCameraDevices(this._hass);
+  }
+
+  _collect() {
     const areaName = this._areaName();
     return this._entries()
       .map((e) => {
@@ -241,18 +244,10 @@ const RoomSensorsCardEditor = rcEditor({
   i18n: RS_I18N,
   defaults: { columns: 2, only_alerts: false, hide_when_clear: false, presence: true, blink: true },
   helpers: ["title", "only_alerts", "hide_when_clear", "presence"],
-  schema: () => [
+  schema: (_lang, hass, config) => [
     ...rcAreaFields(false),
     ...rcBooleans("only_alerts", "hide_when_clear", "presence", "blink"),
-    {
-      name: "exclude",
-      selector: {
-        entity: {
-          multiple: true,
-          filter: { domain: "binary_sensor", device_class: [...RC_OPENING_CLASSES, ...RC_PRESENCE_CLASSES] },
-        },
-      },
-    },
+    ...rcExcludeField(RoomSensorsCard, hass, config),
   ],
 });
 

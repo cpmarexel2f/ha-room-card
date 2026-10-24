@@ -68,7 +68,7 @@ The Sensors, Lights and Plugs cards share these options; each card section lists
 | `entities` | ✅* | — | Explicit list, replaces the discovery; each item is an entity ID or `{entity, name, icon}` (plus `power` on the Plugs card) |
 | `title` | ❌ | Area name | Card title |
 | `columns` | ❌ | `2` | Number of tile columns (1–4) |
-| `exclude` | ❌ | — | Entities left out of the automatic discovery |
+| `exclude` | ❌ | — | Entities left out of the automatic discovery; the visual editor only offers the ones the card finds in the chosen room |
 | `navigation_path` | ❌ | — | Lights and Plugs cards: dashboard opened when tapping the title, e.g. `/light` |
 | `only_on` | ❌ | `false` | Lights and Plugs cards: show only what is on (and unavailable entities) |
 | `hide_when_off` | ❌ | `false` | Lights and Plugs cards: hide the whole card when everything is off |
@@ -134,7 +134,7 @@ rooms:
 | `sort` | ❌ | `name` | `name`, or `state` to list the rooms needing attention first (leak, open, presence, something on) |
 | `presence` | ❌ | `true` | Include the presence and motion sensors (camera detections are always left out) |
 | `only_active` | ❌ | `false` | Show only the rooms with something open, on or detected |
-| `exclude_areas` | ❌ | — | Rooms left out |
+| `exclude_areas` | ❌ | — | Rooms left out; the visual editor only offers the rooms the card finds |
 | `rooms` | ❌ | — | Room order and overrides, see below; the other rooms follow |
 | `language` | ❌ | Auto | Force language: `fr` or `en` (auto-detects from HA settings) |
 

@@ -150,10 +150,14 @@ class RcCard extends HTMLElement {
       return c.entities.map((e) => (typeof e === "string" ? { entity: e } : e)).filter((e) => h.states[e.entity]);
     }
     const exclude = new Set(c.exclude || []);
+    this._prepare();
     return Object.keys(h.states)
       .filter((id) => !exclude.has(id) && !h.entities?.[id]?.hidden && this._areaOf(id) === c.area && this._candidate(id))
       .map((entity) => ({ entity }));
   }
+
+  // Hook run before the discovery, for what `_candidate` needs (the camera devices, say).
+  _prepare() {}
 
   // Re-render only when something visible changed.
   _changed(parts) {
@@ -300,7 +304,27 @@ const rcAreaFields = (navigation) => [
 ];
 const rcBooleans = (...names) => names.map((name) => ({ name, selector: { boolean: {} } }));
 
-// `schema(lang)` lists the fields; options left at their default are not written to the YAML.
+// A detached card of class `card`, with `config` over its defaults, to run its discovery from the editor.
+const rcProbe = (card, hass, config) => {
+  const probe = document.createElement(card.tag);
+  probe._hass = hass;
+  probe._config = { ...card.defaults, ...config };
+  return probe;
+};
+
+// Exclude list limited to what the card finds in the chosen room, with the card's own rules
+// (entities already excluded stay in the list).
+const rcExcludeField = (card, hass, config) => {
+  const ids =
+    hass && config?.area
+      ? rcProbe(card, hass, { ...config, entities: undefined, exclude: [] })
+          ._entries()
+          .map((e) => e.entity)
+      : [];
+  return ids.length ? [{ name: "exclude", selector: { entity: { multiple: true, include_entities: ids } } }] : [];
+};
+
+// `schema(lang, hass, config)` lists the fields; options left at their default are not written to the YAML.
 const rcEditor = ({ i18n, defaults, helpers, schema }) =>
   class extends HTMLElement {
     setConfig(config) {
@@ -332,7 +356,7 @@ const rcEditor = ({ i18n, defaults, helpers, schema }) =>
       }
       this._form.hass = this._hass;
       this._form.data = { ...defaults, ...this._config };
-      this._form.schema = schema(lang);
+      this._form.schema = schema(lang, this._hass, this._config);
     }
   };
 

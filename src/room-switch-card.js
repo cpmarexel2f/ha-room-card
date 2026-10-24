@@ -154,10 +154,10 @@ const RoomSwitchCardEditor = rcEditor({
   i18n: RW_I18N,
   defaults: { columns: 2, only_on: false, hide_when_off: false, show_power: true, all_off_button: false },
   helpers: ["title", "navigation_path", "only_on", "hide_when_off", "show_power", "all_off_button"],
-  schema: () => [
+  schema: (_lang, hass, config) => [
     ...rcAreaFields(true),
     ...rcBooleans("only_on", "hide_when_off", "show_power", "all_off_button"),
-    { name: "exclude", selector: { entity: { multiple: true, filter: { domain: "switch" } } } },
+    ...rcExcludeField(RoomSwitchCard, hass, config),
   ],
 });
 
