@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+### What's new
+- `exclude` on the Overview card: entities left out of the tiles, the header totals and the room details (the Sensors, Lights and Plugs cards unfolded for a room get the same exclusions). The visual editor offers the entities the card counts in the rooms it shows, plus the ones already excluded.
+
 ## 1.1.0
 
 ### What's new

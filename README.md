@@ -116,6 +116,8 @@ presence: true
 only_active: false
 exclude_areas:
   - garage
+exclude:
+  - light.living_room_camera_floodlight
 rooms:
   - area: living_room
   - area: kitchen
@@ -136,6 +138,7 @@ rooms:
 | `presence` | ❌ | `true` | Include the presence and motion sensors (camera detections are always left out) |
 | `only_active` | ❌ | `false` | Show only the rooms with something open, on or detected |
 | `exclude_areas` | ❌ | — | Rooms left out; the visual editor only offers the rooms the card finds |
+| `exclude` | ❌ | — | Entities left out of the tiles, the totals and the room details; the visual editor only offers the entities the card counts in the rooms it shows |
 | `rooms` | ❌ | — | Room order and overrides, see below; the other rooms follow |
 | `language` | ❌ | Auto | Force language: `fr` or `en` (auto-detects from HA settings) |
 

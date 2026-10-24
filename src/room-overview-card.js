@@ -56,6 +56,8 @@ const RO_I18N = {
     ed_sort_name: "By name",
     ed_sort_state: "Rooms needing attention first",
     ed_exclude_areas: "Rooms to exclude",
+    ed_exclude: "Entities to exclude",
+    ed_exclude_helper: "Left out of the tiles, the totals and the room details",
   },
   fr: {
     title: "Maison",
@@ -91,6 +93,8 @@ const RO_I18N = {
     ed_sort_name: "Par nom",
     ed_sort_state: "Pièces à surveiller en premier",
     ed_exclude_areas: "Pièces à exclure",
+    ed_exclude: "Entités à exclure",
+    ed_exclude_helper: "Ignorées dans les tuiles, les totaux et le détail des pièces",
   },
 };
 
@@ -104,7 +108,7 @@ const roRoomIcon = (area) => {
 class RoomOverviewCard extends RcCard {
   static tag = "room-overview-card";
   static i18n = RO_I18N;
-  static defaults = { presence: true, only_active: false, sort: "name", exclude_areas: [], rooms: [] };
+  static defaults = { presence: true, only_active: false, sort: "name", exclude_areas: [], exclude: [], rooms: [] };
 
   static getStubConfig() {
     return {};
@@ -155,9 +159,10 @@ class RoomOverviewCard extends RcCard {
       return rooms[aid];
     };
 
+    const excluded = new Set(c.exclude || []);
     for (const [id, st] of Object.entries(h.states)) {
       const r = reg[id];
-      if (r?.hidden || r?.entity_category) continue;
+      if (r?.hidden || r?.entity_category || excluded.has(id)) continue;
       const aid = areaOf(id);
       if (!aid) continue;
       const dc = st.attributes.device_class;
@@ -350,7 +355,7 @@ class RoomOverviewCard extends RcCard {
     for (const [tag, count, extra] of parts) {
       if (!count || !customElements.get(tag)) continue;
       const el = document.createElement(tag);
-      el.setConfig({ type: `custom:${tag}`, area: x.id, ...extra });
+      el.setConfig({ type: `custom:${tag}`, area: x.id, exclude: this._config.exclude || [], ...extra });
       el.hass = this._hass;
       panel.appendChild(el);
       this._details.push(el);
@@ -453,10 +458,19 @@ class RoomOverviewCard extends RcCard {
 }
 
 // ── Editor ───────────────────────────────────────────────────────────────────
+// Entities the card counts in the rooms it shows, plus the ones already excluded.
+const roExcludeField = (hass, config) => {
+  if (!hass) return [];
+  const rooms = rcProbe(RoomOverviewCard, hass, { ...config, exclude: [], only_active: false })._collect();
+  const ids = rooms.flatMap((x) => [...x.sensors, ...x.presence, ...x.lights, ...x.plugs].map((e) => e.id));
+  for (const id of config?.exclude || []) if (!ids.includes(id)) ids.push(id);
+  return ids.length ? [{ name: "exclude", selector: { entity: { multiple: true, include_entities: ids } } }] : [];
+};
+
 const RoomOverviewCardEditor = rcEditor({
   i18n: RO_I18N,
   defaults: { presence: true, only_active: false, sort: "name" },
-  helpers: ["title", "columns", "presence", "only_active"],
+  helpers: ["title", "columns", "presence", "only_active", "exclude"],
   schema: (lang, hass, config) => [
     { name: "title", selector: { text: {} } },
     { name: "columns", selector: { number: { min: 1, max: 6, mode: "box" } } },
@@ -489,6 +503,7 @@ const RoomOverviewCardEditor = rcEditor({
         },
       },
     },
+    ...roExcludeField(hass, config),
   ],
 });
 
