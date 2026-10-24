@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+### Fixes
+- Overview card with *Hide idle rooms*: when every room is idle, the card shrinks to its header instead of saying no room was found, and the header says *All closed* again when the home has door or window sensors.
+
 ## 1.2.0
 
 ### What's new

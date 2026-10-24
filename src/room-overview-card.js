@@ -218,6 +218,8 @@ class RoomOverviewCard extends RcCard {
       }
       return a.name.localeCompare(b.name);
     });
+    this._total = list.length;
+    this._anySensors = list.some((x) => x.sensors.length);
     if (c.only_active) list = list.filter((x) => rank(x) > 0 || x.id === this._openArea);
     return list;
   }
@@ -261,7 +263,7 @@ class RoomOverviewCard extends RcCard {
       ? this._t("leak")
       : open
         ? this._t(open > 1 ? "open_many" : "open_one", { n: open })
-        : this._t(rooms.some((x) => x.sensors.length) ? "all_closed" : "all_quiet");
+        : this._t(this._anySensors ? "all_closed" : "all_quiet");
     const headIcon = leaks ? "mdi:water-alert" : open ? "mdi:home-alert-outline" : "mdi:home-outline";
 
     const chip = (cls, icon, label, text) =>
@@ -281,7 +283,12 @@ class RoomOverviewCard extends RcCard {
     const grid = card.querySelector(".grid");
     grid.classList.toggle("fixed", cols >= 1);
     grid.style.setProperty("--cols", String(Math.min(6, Math.max(1, cols || 3))));
-    grid.innerHTML = rooms.length
+    // Every room idle with "Hide idle rooms": the header alone says it all.
+    const idle = !rooms.length && this._total > 0;
+    grid.hidden = idle;
+    grid.innerHTML = idle
+      ? ""
+      : rooms.length
       ? rooms
           .map((x) => {
             const s = this._roomState(x);
@@ -438,6 +445,7 @@ class RoomOverviewCard extends RcCard {
       .room:not(.lvl-ok) .state { color: var(--t); }
       .chips { grid-area: chips; display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
       .chips:empty { display: none; }
+      .grid[hidden] { display: none; }
       .empty { grid-column: 1 / -1; padding: 12px; text-align: center; font-size: 13px; color: var(--secondary-text-color); }
 
       .panel { margin-top: 8px; border-radius: 12px; overflow: hidden;
