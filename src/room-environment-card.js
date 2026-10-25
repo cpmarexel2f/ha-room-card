@@ -6,6 +6,7 @@
 // ── i18n ─────────────────────────────────────────────────────────────────────
 const RE_I18N = {
   en: {
+    ed_columns_helper: "Mini card: columns of the zoomed-in view",
     title: "Environment",
     no_sensors: "No sensor",
     comfortable: "Comfortable",
@@ -38,6 +39,7 @@ const RE_I18N = {
     ed_exclude: "Sensors to exclude",
   },
   fr: {
+    ed_columns_helper: "Mini-carte : colonnes de la vue zoomée",
     title: "Environnement",
     no_sensors: "Aucun capteur",
     comfortable: "Confortable",
@@ -164,6 +166,13 @@ const reMatch = (hass, id) =>
 const RE_WET_ROOM = /salle (de )?bains?|salle d.eau|douche|bath|shower|buanderie|laundry/i;
 const RE_WET_HUMIDITY = [25, 35, 70, 80];
 
+// Outdoor areas (terrace, garden, balcony…): their temperature and humidity are the weather, not a comfort issue, so
+// they are information only, unless the user set thresholds for them.
+const RE_OUTDOOR_ROOM = /terrasse|jardin|balcon|patio|ext[ée]rieur|cour\b|garden|terrace|balcony|outdoor|outside|yard/i;
+const RE_OUTDOOR_KINDS = ["temperature", "humidity"];
+const reOutdoorInfo = (kind, room) =>
+  RE_OUTDOOR_KINDS.includes(kind) && !room.thresholds?.[kind] && RE_OUTDOOR_ROOM.test(room.name || "");
+
 // Thresholds of `kind` for a room: the room's own, then the card's, then the wet-room humidity, then the defaults.
 const reCustom = (kind, room) =>
   room.thresholds?.[kind] ?? (kind === "humidity" && RE_WET_ROOM.test(room.name || "") ? RE_WET_HUMIDITY : undefined);
@@ -243,6 +252,7 @@ class RoomEnvironmentCard extends RcCard {
       name: (single && first.e.name) || this._t(`k_${kind}`),
       on: true,
       sev: "ok",
+      cold: false,
       num: value,
       unit,
     };
@@ -256,8 +266,10 @@ class RoomEnvironmentCard extends RcCard {
       const sc = reScale(kind, unit, reCustom(kind, room));
       band = reBand(value, sc.scale);
       gauge = sc.gauge;
-      item.sev = (k.sev ?? RE_SEV)[band];
-      item.cold = !!k.cold?.includes(band);
+      if (!reOutdoorInfo(kind, room)) {
+        item.sev = (k.sev ?? RE_SEV)[band];
+        item.cold = !!k.cold?.includes(band);
+      }
     }
     const text = single ? this._format(first.st, kind) : this._formatNumber(value, k.digits, unit);
     const word = this._words(k.words)[band];
@@ -379,12 +391,13 @@ class RoomEnvironmentCard extends RcCard {
 // ── Editor ───────────────────────────────────────────────────────────────────
 const RoomEnvironmentCardEditor = rcEditor({
   card: RoomEnvironmentCard,
-  helpers: ["title", "navigation_path", "only_alerts", "show_gauge", "include"],
-  schema: (_lang, hass, config) => [
+  helpers: ["title", "navigation_path", "only_alerts", "show_gauge", "include", ...RC_ADVANCED_HELPERS],
+  schema: (lang, hass, config) => [
     ...rcAreaFields(true),
     ...rcBooleans("only_alerts", "show_gauge"),
     ...rcIncludeField(RoomEnvironmentCard, hass, config),
     ...rcExcludeField(RoomEnvironmentCard, hass, config),
+    ...rcAdvanced(RE_I18N, lang, "thresholds", "entities", "language"),
   ],
 });
 
@@ -436,12 +449,13 @@ class RoomEnvironmentMiniCard extends rcMini(
 
 const RoomEnvironmentMiniCardEditor = rcEditor({
   card: RoomEnvironmentMiniCard,
-  helpers: ["title", "navigation_path", "only_alerts", "zoom", "include"],
-  schema: (_lang, hass, config) => [
-    ...rcAreaFields(true).filter((f) => f.name !== "columns"),
-    ...rcBooleans("only_alerts", "zoom"),
+  helpers: ["title", "navigation_path", "columns", "only_alerts", "show_gauge", "zoom", "include", ...RC_ADVANCED_HELPERS],
+  schema: (lang, hass, config) => [
+    ...rcAreaFields(true),
+    ...rcBooleans("only_alerts", "zoom", "show_gauge"),
     ...rcIncludeField(RoomEnvironmentMiniCard, hass, config),
     ...rcExcludeField(RoomEnvironmentMiniCard, hass, config),
+    ...rcAdvanced(RE_I18N, lang, "thresholds", "entities", "language"),
   ],
 });
 
@@ -754,7 +768,7 @@ class RoomEnvironmentOverviewCard extends RoomEnvironmentCard {
 
 const RoomEnvironmentOverviewCardEditor = rcEditor({
   card: RoomEnvironmentOverviewCard,
-  helpers: ["title", "columns", "zoom", "exclude"],
+  helpers: ["title", "columns", "zoom", "exclude", ...RC_ADVANCED_HELPERS],
   schema: (lang, hass, config) => {
     const probe = hass && rcProbe(RoomEnvironmentOverviewCard, hass, { ...config, exclude_areas: [], exclude: [], zoom: false });
     const rooms = probe ? probe._collect() : [];
@@ -768,6 +782,7 @@ const RoomEnvironmentOverviewCardEditor = rcEditor({
         selector: { select: { multiple: true, mode: "dropdown", options: rooms.map((x) => ({ value: x.id, label: x.name })) } },
       },
       ...rcEntitiesField("exclude", ids),
+      ...rcAdvanced(REO_I18N, lang, "thresholds", "rooms", "language"),
     ];
   },
 });
