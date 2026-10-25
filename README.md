@@ -57,12 +57,12 @@ All the cards share the same look (header with a status pill, compact tiles), a 
 
 ### Sensors mini
 
-`custom:room-sensors-mini-card` — The same sensors on two lines, with a zoom to the full card.
+`custom:room-sensors-mini-card` — Only what is open or detected, for a compact dashboard; zoom in for every sensor.
 
 - Room badge coloured like the Sensors card, the title and the status (*1 open*, *Water leak*) on the first line
-- One chip per sensor on the second line: a quiet sensor is a plain icon, an open, leaking or detecting one a tinted pill with its name (blinking unless `blink: false`)
-- **Zoom** button (top right) switches the card to the full [Sensors card](#sensors) and back (`zoom: false` removes it); zoomed in, every sensor is shown, `only_alerts` only filtering the compact view
-- Same discovery and options as the Sensors card: `only_alerts`, `hide_when_clear`, `presence`, `blink`, `include` / `exclude`
+- On the second line, a tinted pill with its name for each open, leaking or detecting sensor (blinking unless `blink: false`); quiet sensors are hidden, so a quiet room is a single line
+- **Zoom** button (top right) switches the card to the full [Sensors card](#sensors) — every sensor, with how long it has been open — and back (`zoom: false` removes it)
+- Same discovery and options as the Sensors card: `hide_when_clear` (compact view only), `presence`, `blink`, `include` / `exclude`
 - Tap a sensor to open its details
 
 ### Lights
@@ -290,7 +290,7 @@ In addition to the [common options](#common-options):
 
 ### Sensors mini
 
-Same options as the [Sensors card](#sensors), plus `zoom`; `columns` only shapes the zoomed-in view:
+Same options as the [Sensors card](#sensors) except `only_alerts` (the compact view always hides quiet sensors), plus `zoom`; `columns` only shapes the zoomed-in view:
 
 ```yaml
 type: custom:room-sensors-mini-card

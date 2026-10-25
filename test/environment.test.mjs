@@ -154,6 +154,7 @@ test("the mini card shows one chip per reading with a short unit, and the status
   const html = card.shadowRoot.innerHTML;
   assert.equal((html.match(/class="r /g) || []).length, 5);
   assert.match(html, /<span>21,4<\/span><small>°<\/small>/);
+  assert.match(html, /class="r s-warn pill k-co2"/);
   assert.match(html, /class="st">Aérer</);
   assert.match(html, /lvl-warn/);
   assert.equal(card.getCardSize(), 1);

@@ -396,9 +396,8 @@ rcRegister(
 );
 
 // ── Mini card ────────────────────────────────────────────────────────────────
-// The same readings on a single line: the room badge and title, then one chip per reading (icon and value),
-// tinted only when the reading needs a look. Wraps onto a second line when the card is narrow.
-// A zoom button switches the card to the full Environment card (same readings, tiles and gauges) and back.
+// The room on two lines: the badge, title and status, then one chip per reading (icon and value), tinted only when
+// the reading needs a look. The zoom button switches to the full Environment card (tiles and gauges) and back.
 // `columns` and `show_gauge` only shape the zoomed-in view.
 class RoomEnvironmentMiniCard extends rcMini(
   RoomEnvironmentCard,
@@ -420,7 +419,7 @@ class RoomEnvironmentMiniCard extends rcMini(
 
     const shown = c.only_alerts ? items.filter((i) => i.sev !== "ok") : items;
     this._shown = shown.length;
-    // Comfortable readings stay plain; the ones needing a look get a tinted pill.
+    // Comfortable readings stay plain; the ones needing a look get a tinted pill, cool ones in blue.
     const pill = (i) => i.sev === "warn" || i.sev === "alert" || (i.cold && i.sev !== "ok");
     const chips = shown
       .map(

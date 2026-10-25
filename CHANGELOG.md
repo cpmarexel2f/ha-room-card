@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11.0
+
+### Changes
+- Sensors mini card: the compact view only shows what needs a look — open, leaking or detecting sensors. Quiet sensors show once zoomed in, so a quiet room is a single line.
+- Sensors mini card: no more `only_alerts` option (it is what the compact view does); an `only_alerts` left in its YAML is ignored. The Environment mini card is unchanged: every reading, with `only_alerts` as before.
+
 ## 1.10.0
 
 ### What's new
