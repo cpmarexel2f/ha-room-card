@@ -131,8 +131,10 @@ const RE_KINDS = {
   noise: {
     dc: ["sound_pressure"],
     unit: "dB",
-    scale: [null, null, 55, 70],
-    gauge: [20, 90],
+    // Noisy from 70 dB (vacuum, loud TV), very noisy from 85 dB (the level where long exposure harms hearing):
+    // conversation and everyday sounds (40 to 65 dB) stay quiet.
+    scale: [null, null, 70, 85],
+    gauge: [20, 100],
     digits: 0,
     words: "noise",
     issue: "noise",
@@ -166,10 +168,10 @@ const reMatch = (hass, id) =>
 const RE_WET_ROOM = /salle (de )?bains?|salle d.eau|douche|bath|shower|buanderie|laundry/i;
 const RE_WET_HUMIDITY = [25, 35, 70, 80];
 
-// Outdoor areas (terrace, garden, balcony…): their temperature and humidity are the weather, not a comfort issue, so
-// they are information only, unless the user set thresholds for them.
+// Outdoor areas (terrace, garden, balcony…): their temperature, humidity and noise are the weather and the street, not
+// a comfort issue, so they are information only, unless the user set thresholds for them.
 const RE_OUTDOOR_ROOM = /terrasse|jardin|balcon|patio|ext[ée]rieur|cour\b|garden|terrace|balcony|outdoor|outside|yard/i;
-const RE_OUTDOOR_KINDS = ["temperature", "humidity"];
+const RE_OUTDOOR_KINDS = ["temperature", "humidity", "noise"];
 const reOutdoorInfo = (kind, room) =>
   RE_OUTDOOR_KINDS.includes(kind) && !room.thresholds?.[kind] && RE_OUTDOOR_ROOM.test(room.name || "");
 
