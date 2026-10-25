@@ -14,6 +14,7 @@ Compact Lovelace cards for Home Assistant, **room by room**: sensors, lights, pl
 |---|---|---|
 | [Overview](#overview) | `custom:room-overview-card` | Every room at a glance: one tile per room, tap a room to unfold its sensors, lights and plugs. |
 | [Sensors](#sensors) | `custom:room-sensors-card` | Leak, door, window, opening and presence sensors of a room: what is open comes first, with how long it has been open. |
+| [Sensors mini](#sensors-mini) | `custom:room-sensors-mini-card` | The same sensors on two lines, with a zoom to the full card. |
 | [Lights](#lights) | `custom:room-lights-card` | Lights of a room: tap to toggle, drag to dim, turn everything off from the header. |
 | [Plugs](#plugs) | `custom:room-switch-card` | Smart plugs of a room with their power draw: what is on comes first, the most power-hungry first. |
 | [Environment](#environment) | `custom:room-environment-card` | Temperature, humidity, air quality, noise and light level of a room, coloured by comfort. |
@@ -53,6 +54,16 @@ All the cards share the same look (header with a status pill, compact tiles), a 
 - Show only the open or active sensors (`only_alerts`), or hide the whole card when everything is closed, dry and nobody is there (`hide_when_clear`)
 - Tap a sensor to open its details
 - Automatic discovery from the area, or an explicit list with name and icon overrides
+
+### Sensors mini
+
+`custom:room-sensors-mini-card` — The same sensors on two lines, with a zoom to the full card.
+
+- Room badge coloured like the Sensors card, the title and the status (*1 open*, *Water leak*) on the first line
+- One chip per sensor on the second line: a quiet sensor is a plain icon, an open, leaking or detecting one a tinted pill with its name (blinking unless `blink: false`)
+- **Zoom** button (top right) switches the card to the full [Sensors card](#sensors) and back (`zoom: false` removes it); zoomed in, every sensor is shown, `only_alerts` only filtering the compact view
+- Same discovery and options as the Sensors card: `only_alerts`, `hide_when_clear`, `presence`, `blink`, `include` / `exclude`
+- Tap a sensor to open its details
 
 ### Lights
 
@@ -104,6 +115,7 @@ All the cards share the same look (header with a status pill, compact tiles), a 
 - One chip per reading on the second line: icon and value, the unit kept small (*21,4°*, *640 ppm*); comfortable readings are plain, the others get a tinted pill
 - Same discovery, thresholds, `only_alerts`, `include` / `exclude` and `navigation_path` as the Environment card; the chips wrap onto another line when the card is narrow or the room has many sensors
 - Tap a reading to open its details and history
+- **Zoom** button (top right) switches the card to the full [Environment card](#environment) — tiles, comfort words, gauges — and back (`zoom: false` removes it); zoomed in, every reading is shown, `only_alerts` only filtering the compact view
 
 ### Environment overview
 
@@ -276,6 +288,21 @@ In addition to the [common options](#common-options):
 | `presence` | ❌ | `true` | Include the presence and motion sensors of the area |
 | `blink` | ❌ | `true` | Blink the icon of open sensors (also stops when the system asks for reduced motion) |
 
+### Sensors mini
+
+Same options as the [Sensors card](#sensors), plus `zoom`; `columns` only shapes the zoomed-in view:
+
+```yaml
+type: custom:room-sensors-mini-card
+area: living_room
+hide_when_clear: true
+zoom: true
+```
+
+| Option | Required | Default | Description |
+|---|---|---|---|
+| `zoom` | ❌ | `true` | Zoom button switching to the full Sensors card and back |
+
 ### Lights
 
 Minimal:
@@ -431,15 +458,20 @@ The Environment card takes these options on top of the [common options](#common-
 
 ### Environment mini
 
-Same options as the [Environment card](#environment), except `columns` and `show_gauge`:
+Same options as the [Environment card](#environment), plus `zoom`; `columns` and `show_gauge` only shape the zoomed-in view:
 
 ```yaml
 type: custom:room-environment-mini-card
 area: living_room
 navigation_path: /dashboard-home/living-room
+zoom: true
 exclude:
   - sensor.living_room_pm25
 ```
+
+| Option | Required | Default | Description |
+|---|---|---|---|
+| `zoom` | ❌ | `true` | Zoom button switching to the full Environment card and back |
 
 ### Environment overview
 
@@ -503,6 +535,12 @@ rooms:
 |---|---|
 | ![A door open](screenshots/sensors-open.png) | ![Water leak](screenshots/sensors-leak.png) |
 | ![A door open dark](screenshots/sensors-open-dark.png) | ![Water leak dark](screenshots/sensors-leak-dark.png) |
+| ![Mini a door open](screenshots/sensors-mini-open.png) | ![Mini water leak](screenshots/sensors-mini-leak.png) |
+| ![Mini a door open dark](screenshots/sensors-mini-open-dark.png) | ![Mini water leak dark](screenshots/sensors-mini-leak-dark.png) |
+
+| Mini card zoomed in | |
+|---|---|
+| ![Mini zoomed in](screenshots/sensors-mini-zoom.png) | ![Mini zoomed in dark](screenshots/sensors-mini-zoom-dark.png) |
 
 ### Lights
 
@@ -526,6 +564,10 @@ rooms:
 | ![Comfortable dark](screenshots/environment-comfort-dark.png) | ![Stuffy room dark](screenshots/environment-stuffy-dark.png) |
 | ![Mini comfortable](screenshots/environment-mini-comfort.png) | ![Mini stuffy room](screenshots/environment-mini-stuffy.png) |
 | ![Mini comfortable dark](screenshots/environment-mini-comfort-dark.png) | ![Mini stuffy room dark](screenshots/environment-mini-stuffy-dark.png) |
+
+| Mini card zoomed in | |
+|---|---|
+| ![Mini zoomed in](screenshots/environment-mini-zoom.png) | ![Mini zoomed in dark](screenshots/environment-mini-zoom-dark.png) |
 
 ### Environment overview
 
