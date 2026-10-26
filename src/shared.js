@@ -902,9 +902,9 @@ const RC_BASE_STYLES = `
   .head { display: flex; align-items: center; gap: 10px; }
   .head.nav { cursor: pointer; }
   .head.nav:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; border-radius: 4px; }
-  .badge { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  .badge { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
            background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
-  .badge ha-icon { --mdc-icon-size: 20px; }
+  .badge ha-icon { --mdc-icon-size: 24px; }
   .lvl-alert .badge { animation: rc-pulse 1.6s ease-in-out infinite; }
   .title { flex: 1; min-width: 0; font-size: 16px; font-weight: 500; color: var(--primary-text-color);
            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -915,7 +915,7 @@ const RC_BASE_STYLES = `
   .pill.action:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
   .pill ha-icon { --mdc-icon-size: 12px; margin-left: -2px; }
 
-  .grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
   .tile { all: unset; position: relative; overflow: hidden; box-sizing: border-box; cursor: pointer; min-width: 0;
           display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 5px; border-radius: 10px;
           touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
@@ -952,13 +952,14 @@ const RC_ZOOM_STYLES = `
 `;
 
 const RC_MINI_STYLES = `${RC_ZOOM_STYLES}
-  ha-card:has(.mini) { padding: 8px 10px; }
-  .mini { display: flex; align-items: center; gap: 10px; }
+  /* The badge sits 12px from the card's top-left corner, like the other ha-* cards, beside the title and the readings. */
+  ha-card:has(.mini) { padding: 12px; }
+  .mini { display: flex; align-items: flex-start; gap: 10px; }
   .mini .badge { width: 32px; height: 32px; }
-  .mini .badge ha-icon { --mdc-icon-size: 18px; }
-  .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .mini .badge ha-icon { --mdc-icon-size: 20px; }
+  .body { flex: 1; min-width: 0; min-height: 32px; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
   .mini .head { gap: 8px; }
-  .mini .title { flex: 0 1 auto; font-size: 14px; line-height: 18px; }
+  .mini .title { flex: 0 1 auto; line-height: 1.25; }
   .st { flex: none; margin-left: auto; font-size: 11px; font-weight: 500; color: var(--c); }
   .rs { display: flex; flex-wrap: wrap; gap: 2px 4px; margin-left: -4px; }
   .rs:empty { display: none; }
