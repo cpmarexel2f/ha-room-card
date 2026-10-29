@@ -96,16 +96,22 @@ const rcDeviceSensors = rcPerRegistry((hass) => {
 });
 
 // Power sensor (device class power, W or kW) of each device; only the device's own sensors are read.
-// Memoized per registry like rcDeviceSensors: a device_class read from states next to never changes,
-// and this pass would otherwise rescan every device on every state change of the instance.
-const rcPowerSensors = rcPerRegistry((hass) => {
-  const out = {};
-  for (const [device, ids] of Object.entries(rcDeviceSensors(hass))) {
+// Settled per registry like rcDeviceSensors (a device_class next to never changes), except for the devices with a
+// sensor that has no state yet (an integration still loading after a restart): those are looked at again on every
+// call until all their sensors report, so their power sensor is not missed until the next registry change.
+const rcPowerCache = rcPerRegistry((hass) => ({ found: {}, pending: new Set(Object.keys(rcDeviceSensors(hass))) }));
+const rcPowerSensors = (hass) => {
+  const cache = rcPowerCache(hass);
+  if (!cache.pending.size) return cache.found;
+  const sensors = rcDeviceSensors(hass);
+  for (const device of cache.pending) {
+    const ids = sensors[device] || [];
     const id = ids.find((s) => hass.states[s]?.attributes.device_class === "power");
-    if (id) out[device] = id;
+    if (id) cache.found[device] = id;
+    if (id || ids.every((s) => hass.states[s])) cache.pending.delete(device);
   }
-  return out;
-});
+  return cache.found;
+};
 
 const rcWattsOf = (hass, sensorId) => {
   const st = sensorId && hass.states[sensorId];
@@ -589,7 +595,10 @@ class RcCard extends HTMLElement {
     root.querySelector(".pill.action")?.addEventListener("click", (ev) => {
       ev.stopPropagation();
       const ids = (this._items || []).filter((i) => i.on).map((i) => i.id);
-      if (ids.length) rcCall(this._hass, "homeassistant", "turn_off", { entity_id: ids });
+      if (!ids.length) return;
+      // A host card may ask first (the Overview confirms before turning plugs off); otherwise off at once.
+      if (this._confirmOff) this._confirmOff(ids);
+      else rcCall(this._hass, "homeassistant", "turn_off", { entity_id: ids });
     });
     if (this._config.navigation_path) rcBindNav(root.querySelector(".head"), this._config.navigation_path);
     for (const el of root.querySelectorAll(".tile")) this._bindTile(el, (this._items || []).find((i) => i.id === el.dataset.id));
@@ -810,6 +819,59 @@ const rcMini = (Base, tag, styles, { alertsOnly = false } = {}) =>
     }
   };
 
+// ── Overviews: the open room ─────────────────────────────────────────────────
+// What both overviews share around their room tiles: a tap follows the room's `navigation_path` or unfolds its
+// details in the `.panel` (filled by the subclass's `_fillPanel`, from `_roomGrid`), a click anywhere else folds it
+// back and returns to the rooms needing a look. The subclass implements `_shownRooms()` (the tiles shown) and
+// `_clearPanel()` (drops its detail cards); `_beforeFold()` (optional) runs first on an outside click.
+const rcRoomsPanel = (Base) =>
+  class extends Base {
+    constructor() {
+      super();
+      this._onOutside = (ev) => {
+        if (!rcOutside(this, ev)) return;
+        this._beforeFold?.();
+        if (this._openArea) this._toggle(null);
+        rcUnzoom(this);
+      };
+    }
+
+    // A new config rebuilds the room details, which take part of it (language, exclude, thresholds…).
+    setConfig(config) {
+      this._panelArea = null;
+      super.setConfig(config);
+    }
+
+    connectedCallback() {
+      super.connectedCallback?.();
+      document.addEventListener("click", this._onOutside, true);
+    }
+
+    disconnectedCallback() {
+      super.disconnectedCallback?.();
+      document.removeEventListener("click", this._onOutside, true);
+    }
+
+    _tap(aid) {
+      const x = this._shownRooms().find((r) => r.id === aid);
+      if (x?.navigation_path) rcNavigate(x.navigation_path);
+      else this._toggle(this._openArea === aid ? null : aid);
+    }
+
+    // Opens a room's details (the render fills the panel), or folds them back.
+    _toggle(aid) {
+      this._openArea = aid;
+      this._panelArea = null;
+      this._sig = null;
+      this._render();
+      if (aid) return;
+      const panel = this.shadowRoot.querySelector(".panel");
+      panel.hidden = true;
+      panel.innerHTML = "";
+      this._clearPanel();
+    }
+  };
+
 // ── Editor ───────────────────────────────────────────────────────────────────
 // Fields shared by the room cards' editors.
 const rcAreaFields = (navigation) => [
@@ -916,10 +978,13 @@ const rcEditor = ({ card, helpers, schema }) => {
     _update() {
       if (!this._hass || !this._config) return;
       const lang = rcLang(i18n, this._hass, this._config);
+      // Read by the label and helper callbacks, set once on the form: a language change must reach them too.
+      this._lang = lang;
       if (!this._form) {
         this._form = document.createElement("ha-form");
-        this._form.computeLabel = (s) => rcT(i18n, lang, `ed_${s.name}`);
-        this._form.computeHelper = (s) => (helpers.includes(s.name) ? rcT(i18n, lang, `ed_${s.name}_helper`) : undefined);
+        this._form.computeLabel = (s) => rcT(i18n, this._lang, `ed_${s.name}`);
+        this._form.computeHelper = (s) =>
+          helpers.includes(s.name) ? rcT(i18n, this._lang, `ed_${s.name}_helper`) : undefined;
         this._form.addEventListener("value-changed", (ev) => {
           const config = { ...ev.detail.value };
           for (const k of Object.keys(config)) {

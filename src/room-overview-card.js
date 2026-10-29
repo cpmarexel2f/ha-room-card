@@ -140,7 +140,7 @@ const RO_I18N = {
     ed_all_off_button: "Botón «Apagar todas las luces»",
     ed_all_off_button_helper: "Al tocar el chip de luces de la cabecera se apagan todas las luces que cuenta la tarjeta",
     ed_plugs_off_button: "Botón «Apagar todos los enchufes»",
-    ed_plugs_off_button_helper: "Al tocar el chip de enchufes de la cabecera se listan los enchufes encendidos que cuenta la tarjeta y se apagan tras confirmar; también en la tarjeta Enchufes del detalle de las habitaciones. Desactivado por defecto: un enchufe puede alimentar una cámara o un switch de red",
+    ed_plugs_off_button_helper: "Al tocar el chip de enchufes de la cabecera se listan los enchufes encendidos que cuenta la tarjeta y se apagan tras confirmar; también en la tarjeta Enchufes del detalle de las habitaciones. Desactivado por defecto: un enchufe puede alimentar una cámara o un conmutador de red",
     ed_sort_state: "Primero las habitaciones que requieren atención",
     ed_exclude: "Entidades a excluir",
     ed_exclude_helper: "Se ignoran en los mosaicos, los totales y el detalle de las habitaciones",
@@ -152,7 +152,7 @@ const RO_I18N = {
 const RO_CLOSED_GUARD_MS = 400;
 
 // ── Card ─────────────────────────────────────────────────────────────────────
-class RoomOverviewCard extends RcCard {
+class RoomOverviewCard extends rcRoomsPanel(RcCard) {
   static tag = "room-overview-card";
   static i18n = RO_I18N;
   static defaults = {
@@ -172,13 +172,6 @@ class RoomOverviewCard extends RcCard {
 
   constructor() {
     super();
-    // A click anywhere else folds the open room back, and returns to the rooms needing attention.
-    this._onOutside = (ev) => {
-      if (!rcOutside(this, ev)) return;
-      if (this._confirm) this._closeConfirm();
-      if (this._openArea) this._toggle(null);
-      rcUnzoom(this);
-    };
     // Escape closes the confirmation popup (as Cancel), wherever the focus is.
     this._onKey = (ev) => {
       if (ev.key !== "Escape" || !this._confirm) return;
@@ -187,23 +180,13 @@ class RoomOverviewCard extends RcCard {
     };
   }
 
-  // A new config rebuilds the room details, which take part of it (language, presence, exclude, plugs_off_button).
-  setConfig(config) {
-    this._panelArea = null;
-    super.setConfig(config);
-  }
-
   set hass(hass) {
     super.hass = hass;
     for (const el of this._details || []) el.hass = hass;
   }
 
-  connectedCallback() {
-    document.addEventListener("click", this._onOutside, true);
-  }
-
   disconnectedCallback() {
-    document.removeEventListener("click", this._onOutside, true);
+    super.disconnectedCallback();
     if (this._confirm) this._closeConfirm();
     // A press cut short by the detach never gets its pointerup: end it, or the header stays frozen.
     if (this._pressing) this._released();
@@ -424,6 +407,18 @@ class RoomOverviewCard extends RcCard {
     else rcCall(this._hass, "homeassistant", "turn_off", { entity_id: on.map((e) => e.id) });
   }
 
+  // Plugs `ids` of room `x` turned off from the room details: listed and confirmed like the header's plugs chip.
+  _confirmPlugs(ids, x) {
+    const plugs = ids
+      .map((id) => {
+        const known = x.plugs.find((e) => e.id === id);
+        const st = known?.st ?? this._hass.states[id];
+        return st ? { id, st, watts: known?.watts ?? null, room: x.name } : null;
+      })
+      .filter(Boolean);
+    if (plugs.length) this._openConfirm(plugs);
+  }
+
   // In-card confirmation at the top of the card (as in ha-system-monitor-card and ha-roborock-card), drawn once:
   // updates leave it, and the focus in it, alone. OK turns off the plugs listed, nothing else.
   _openConfirm(plugs) {
@@ -468,26 +463,18 @@ class RoomOverviewCard extends RcCard {
     return this._closedAt != null && Date.now() - this._closedAt < RO_CLOSED_GUARD_MS;
   }
 
-  _tap(aid) {
-    const x = this._rooms.find((r) => r.id === aid);
-    if (x?.navigation_path) {
-      rcNavigate(x.navigation_path);
-      return;
-    }
-    this._toggle(this._openArea === aid ? null : aid);
+  // rcRoomsPanel hooks: the tiles shown, the room details dropped on fold, and the confirmation closed by an outside
+  // click (as Cancel) before the open room folds back.
+  _shownRooms() {
+    return this._rooms;
   }
 
-  _toggle(aid) {
-    this._openArea = aid;
-    this._panelArea = null;
-    this._sig = null;
-    this._render();
-    const panel = this.shadowRoot.querySelector(".panel");
-    panel.hidden = !aid;
-    if (!aid) {
-      panel.innerHTML = "";
-      this._details = [];
-    }
+  _clearPanel() {
+    this._details = [];
+  }
+
+  _beforeFold() {
+    if (this._confirm) this._closeConfirm();
   }
 
   // Details of the open room: the room-* cards when installed, a plain list otherwise.
@@ -520,6 +507,8 @@ class RoomOverviewCard extends RcCard {
         ...(this._config.language ? { language: this._config.language } : {}),
         ...extra,
       });
+      // The Plugs card's all-off pill goes through the same confirmation as the header's plugs chip.
+      if (tag === "room-switch-card") el._confirmOff = (ids) => this._confirmPlugs(ids, x);
       el.hass = this._hass;
       panel.appendChild(el);
       this._details.push(el);
