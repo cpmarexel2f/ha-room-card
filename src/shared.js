@@ -433,8 +433,8 @@ const RC_I18N = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const rcLang = (i18n, hass, config) => {
-  const l = (config?.language || hass?.locale?.language || hass?.language || "en").slice(0, 2);
-  return i18n[l] ? l : "en";
+  const l = config?.language || hass?.locale?.language || hass?.language || "en";
+  return i18n[l] ? l : (i18n[l.slice(0, 2)] ? l.slice(0, 2) : "en");
 };
 
 const rcT = (i18n, lang, key, vars = {}) => {
